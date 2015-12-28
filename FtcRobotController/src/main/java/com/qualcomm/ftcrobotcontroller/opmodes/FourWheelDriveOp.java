@@ -38,6 +38,9 @@ import com.qualcomm.robotcore.hardware.DcMotorController;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.Range;
 
+import org.swerverobotics.library.TelemetryDashboardAndLog;
+import org.swerverobotics.library.interfaces.*;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -68,7 +71,6 @@ public class FourWheelDriveOp extends OpMode {
     static double continuousStop = 0.5;
     double continuousDelta = 0.05;
 
-//    DcMotorController.DeviceMode devMode;
     DcMotorController wheelControllerFront;
     DcMotorController wheelControllerRear;
     DcMotor motorRightFront;
@@ -80,7 +82,8 @@ public class FourWheelDriveOp extends OpMode {
     Servo wrist;
     Servo continuous;
 
-    int numOpLoops = 1;
+    TelemetryDashboardAndLog dashboard;
+
 
     public FourWheelDriveOp()
     {
@@ -92,6 +95,8 @@ public class FourWheelDriveOp extends OpMode {
      */
     @Override
     public void init() {
+        dashboard = new TelemetryDashboardAndLog();
+
         motorRightFront = hardwareMap.dcMotor.get("motor_rt_front");
         motorRightRear = hardwareMap.dcMotor.get("motor_rt_rear");
         motorLeftFront = hardwareMap.dcMotor.get("motor_lt_front");
@@ -140,6 +145,24 @@ public class FourWheelDriveOp extends OpMode {
         /// swerve robootics interface makes the servos more synchronous
         ///
         createEasyServoController(this, activeServos);
+
+        /// set up the dashboard with callbacks that are activated when needed
+        /// supplants the telemetry object
+        ///
+        dashboard.addLine(dashboard.item("continuous", new IFunc<Object>()
+            {
+                @Override public Double value() {return continuousPosition;}
+            }));
+
+        dashboard.addLine(dashboard.item("front L/R motor", new IFunc<Object>()
+        {
+            @Override public String value() {return Double.toString(motorLeftFront.getPower()) + "/"+ Double.toString(motorRightFront.getPower());}
+        }));
+
+        dashboard.addLine(dashboard.item("rear L/R motor", new IFunc<Object>()
+        {
+            @Override public String value() {return Double.toString(motorLeftRear.getPower()) + "/" + Double.toString(motorRightRear.getPower());}
+        }));
 
         DbgLog.msg("Four Wheel Drive Initialized");
     }
@@ -301,64 +324,8 @@ public class FourWheelDriveOp extends OpMode {
         motorLeftRear.setPower(left);
       } */
 
-        /// every 20 loops, do the telemetry
+        /// telemetry will get updated regularly and sent back without saturating the link or processor
         ///
-        if (numOpLoops % 20 == 0)
-        {
-            // Update the reads after some loops, when the command has successfully propagated through.
-
-            telemetry.addData("continuous ", continuousPosition);
-            telemetry.addData("front L/R  motor ", Double.toString(motorLeftFront.getPower()) + "/"+Double.toString(motorRightFront.getPower()));
-            telemetry.addData("rear L/R rear motor  ", Double.toString(motorLeftRear.getPower()) + "/" + motorRightRear.getPower());
-            telemetry.addData("RunMode: ", motorLeftFront.getMode().toString());
-
-            /// Reset the loop
-            ///
-            numOpLoops = 0;
-        }
-
-        numOpLoops++;
+        dashboard.update();
     }
-
-//    // If the device is in either of these two modes, the op mode is allowed to write to the HW.
-//    private boolean allowedToWrite(){
-//        return (devMode == DcMotorController.DeviceMode.WRITE_ONLY);
-//    }
-
-    /// the DcMotorControllers take a while to switch modes. we can't afford to have
-    /// have the controller to switch from WRITE_ONLY to READ_ONLY in the middle of
-    /// move or (less importantly) switch from READ_ONLY to WRITE_ONLY in the middle
-    /// of gathering telemetry. Use this method to change the mode and not return until
-    /// the transition is done. It checks every 10ms for a transition
-    ///
-//    private int syncSetMotorControllerDeviceMode(DcMotorController.DeviceMode newMode)
-//    {
-//        DcMotorController.DeviceMode devModeFront;
-//        DcMotorController.DeviceMode devModeRear;
-//        int delay = 0;
-//
-//        while (true)
-//        {
-//            wheelControllerFront.setMotorControllerDeviceMode(newMode);
-//            wheelControllerRear.setMotorControllerDeviceMode(newMode);
-//
-//            /// sleep for 10ms and check
-//            ///
-//            try {
-//                Thread.sleep(10);
-//            } catch (InterruptedException e) {
-//                /// sleep got interrupted - oh well
-//                e.printStackTrace();
-//            }
-//            delay++;
-//
-//            devModeFront = wheelControllerFront.getMotorControllerDeviceMode();
-//            devModeRear = wheelControllerRear.getMotorControllerDeviceMode();
-//
-//            if (devModeFront == newMode && devModeRear == newMode)
-//            { break; }
-//        }
-//
-//        return delay * 10;
-//    }
 }
