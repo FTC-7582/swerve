@@ -38,6 +38,12 @@ import com.qualcomm.robotcore.hardware.DcMotorController;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.Range;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.swerverobotics.library.ClassFactory.createEasyMotorController;
+import static org.swerverobotics.library.ClassFactory.createEasyServoController;
+
 /**
  * FourWheelDriveOp Mode
  * <p>
@@ -62,7 +68,7 @@ public class FourWheelDriveOp extends OpMode {
     static double continuousStop = 0.5;
     double continuousDelta = 0.05;
 
-    DcMotorController.DeviceMode devMode;
+//    DcMotorController.DeviceMode devMode;
     DcMotorController wheelControllerFront;
     DcMotorController wheelControllerRear;
     DcMotor motorRightFront;
@@ -91,10 +97,13 @@ public class FourWheelDriveOp extends OpMode {
         motorLeftFront = hardwareMap.dcMotor.get("motor_lt_front");
         motorLeftRear = hardwareMap.dcMotor.get("motor_lt_rear");
 
+        List<Servo> activeServos = new ArrayList<Servo>();
+
         /// code to make the servos optional
         ///
         try {
             claw = hardwareMap.servo.get("claw"); // channel 6
+            activeServos.add(claw);
         }
         catch (Exception E)
         {
@@ -103,6 +112,7 @@ public class FourWheelDriveOp extends OpMode {
 
         try {
             wrist = hardwareMap.servo.get("wrist"); // channel 1
+            activeServos.add(wrist);
         }
         catch (Exception E)
         {
@@ -111,6 +121,7 @@ public class FourWheelDriveOp extends OpMode {
 
         try {
             continuous = hardwareMap.servo.get("continuous");
+            activeServos.add(continuous);
         }
         catch (Exception E)
         {
@@ -119,6 +130,16 @@ public class FourWheelDriveOp extends OpMode {
 
         wheelControllerFront = hardwareMap.dcMotorController.get("wheels_front");
         wheelControllerRear = hardwareMap.dcMotorController.get("wheels_rear");
+
+        /// after the call to createEasyMotorController, the motor controllers
+        /// work normally -- no looping mod 17 or waiting for the mode to switch
+        ///
+        createEasyMotorController(this, motorRightFront, motorLeftFront);
+        createEasyMotorController(this, motorRightRear, motorLeftRear);
+
+        /// swerve robootics interface makes the servos more synchronous
+        ///
+        createEasyServoController(this, activeServos);
 
         DbgLog.msg("Four Wheel Drive Initialized");
     }
@@ -130,7 +151,7 @@ public class FourWheelDriveOp extends OpMode {
     @Override
     public void init_loop() {
 
-        devMode = DcMotorController.DeviceMode.WRITE_ONLY;
+//        devMode = DcMotorController.DeviceMode.WRITE_ONLY;
 
         /// only the motor on the left side runs in reverse
         ///
@@ -156,25 +177,19 @@ public class FourWheelDriveOp extends OpMode {
     @Override
     public void loop() {
 
-        // The op mode should only use "write" methods (setPower, setMode, etc) while in
-        // WRITE_ONLY mode or SWITCHING_TO_WRITE_MODE
-        if (allowedToWrite()) {
     /*
      * Gamepad 1
      *
      * Gamepad 1 controls the motors via the left stick, and it controls the wrist/claw via the a,b,
      * x, y buttons
      */
-
             if (gamepad1.dpad_left) {
-                // Nxt devices start up in "write" mode by default, so no need to switch modes here.
                 motorLeftFront.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
                 motorRightFront.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
                 motorLeftRear.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
                 motorRightRear.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
             }
             if (gamepad1.dpad_right) {
-                // Nxt devices start up in "write" mode by default, so no need to switch modes here.
                 motorLeftFront.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
                 motorRightFront.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
                 motorLeftRear.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
@@ -285,26 +300,11 @@ public class FourWheelDriveOp extends OpMode {
         motorRightRear.setPower(right);
         motorLeftRear.setPower(left);
       } */
-        }
 
-        // To read any values from the NXT controllers, we need to switch into READ_ONLY mode.
-        // It takes time for the hardware to switch, so you can't switch modes within one loop of the
-        // op mode. Every 17th loop, this op mode switches to READ_ONLY mode, and gets the current power.
-        if (numOpLoops % 17 == 0){
-            // Note: If you are using the NxtDcMotorController, you need to switch into "read" mode
-            // before doing a read, and into "write" mode before doing a write. This is because
-            // the NxtDcMotorController is on the I2C interface, and can only do one at a time. If you are
-            // using the USBDcMotorController, there is no need to switch, because USB can handle reads
-            // and writes without changing modes. The NxtDcMotorControllers start up in "write" mode.
-            // This method does nothing on USB devices, but is needed on Nxt devices.
-
-            syncSetMotorControllerDeviceMode(DcMotorController.DeviceMode.READ_ONLY);
-        }
-
-        // Every 17 loops, switch to read mode so we can read data from the NXT device.
-        // Only necessary on NXT devices.
-        if (wheelControllerFront.getMotorControllerDeviceMode() == DcMotorController.DeviceMode.READ_ONLY) {
-
+        /// every 20 loops, do the telemetry
+        ///
+        if (numOpLoops % 20 == 0)
+        {
             // Update the reads after some loops, when the command has successfully propagated through.
 
             telemetry.addData("continuous ", continuousPosition);
@@ -312,25 +312,18 @@ public class FourWheelDriveOp extends OpMode {
             telemetry.addData("rear L/R rear motor  ", Double.toString(motorLeftRear.getPower()) + "/" + motorRightRear.getPower());
             telemetry.addData("RunMode: ", motorLeftFront.getMode().toString());
 
-            /// looks to me like setting the DeviceMode to WRITE_ONLY takes some time
-            /// this won't return until the transition is complete
+            /// Reset the loop
             ///
-            int delayms = syncSetMotorControllerDeviceMode(DcMotorController.DeviceMode.WRITE_ONLY);
-
-            telemetry.addData("Status OPL/Delay ", String.valueOf(numOpLoops) + " / " + String.valueOf(delayms));
-            // Reset the loop
-            // numOpLoops = 0;
+            numOpLoops = 0;
         }
 
-        // Update the current devMode
-        devMode = wheelControllerFront.getMotorControllerDeviceMode();
         numOpLoops++;
     }
 
-    // If the device is in either of these two modes, the op mode is allowed to write to the HW.
-    private boolean allowedToWrite(){
-        return (devMode == DcMotorController.DeviceMode.WRITE_ONLY);
-    }
+//    // If the device is in either of these two modes, the op mode is allowed to write to the HW.
+//    private boolean allowedToWrite(){
+//        return (devMode == DcMotorController.DeviceMode.WRITE_ONLY);
+//    }
 
     /// the DcMotorControllers take a while to switch modes. we can't afford to have
     /// have the controller to switch from WRITE_ONLY to READ_ONLY in the middle of
@@ -338,34 +331,34 @@ public class FourWheelDriveOp extends OpMode {
     /// of gathering telemetry. Use this method to change the mode and not return until
     /// the transition is done. It checks every 10ms for a transition
     ///
-    private int syncSetMotorControllerDeviceMode(DcMotorController.DeviceMode newMode)
-    {
-        DcMotorController.DeviceMode devModeFront;
-        DcMotorController.DeviceMode devModeRear;
-        int delay = 0;
-
-        while (true)
-        {
-            wheelControllerFront.setMotorControllerDeviceMode(newMode);
-            wheelControllerRear.setMotorControllerDeviceMode(newMode);
-
-            /// sleep for 10ms and check
-            ///
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                /// sleep got interrupted - oh well
-                e.printStackTrace();
-            }
-            delay++;
-
-            devModeFront = wheelControllerFront.getMotorControllerDeviceMode();
-            devModeRear = wheelControllerRear.getMotorControllerDeviceMode();
-
-            if (devModeFront == newMode && devModeRear == newMode)
-            { break; }
-        }
-
-        return delay * 10;
-    }
+//    private int syncSetMotorControllerDeviceMode(DcMotorController.DeviceMode newMode)
+//    {
+//        DcMotorController.DeviceMode devModeFront;
+//        DcMotorController.DeviceMode devModeRear;
+//        int delay = 0;
+//
+//        while (true)
+//        {
+//            wheelControllerFront.setMotorControllerDeviceMode(newMode);
+//            wheelControllerRear.setMotorControllerDeviceMode(newMode);
+//
+//            /// sleep for 10ms and check
+//            ///
+//            try {
+//                Thread.sleep(10);
+//            } catch (InterruptedException e) {
+//                /// sleep got interrupted - oh well
+//                e.printStackTrace();
+//            }
+//            delay++;
+//
+//            devModeFront = wheelControllerFront.getMotorControllerDeviceMode();
+//            devModeRear = wheelControllerRear.getMotorControllerDeviceMode();
+//
+//            if (devModeFront == newMode && devModeRear == newMode)
+//            { break; }
+//        }
+//
+//        return delay * 10;
+//    }
 }
