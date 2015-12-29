@@ -74,7 +74,7 @@ public class FourWheelDriveOp extends OpMode {
 
     Servo grabberRotator;
     static double grabberRotatorMiddle = 0.5;
-    static double grabberRotatorStep = 0.5 / 180.0; // 0.5 degrees
+    static double grabberRotatorStep = 0.1; //5.0 / 180.0; // 0.5 degrees
     double grabberRotatorPosition = grabberRotatorMiddle;
 
     Servo continuous;
@@ -85,6 +85,7 @@ public class FourWheelDriveOp extends OpMode {
     static double continuousRight = 1.0;
 
     TelemetryDashboardAndLog dashboard;
+    String ComponentStatus;
 
 
     public FourWheelDriveOp()
@@ -98,6 +99,7 @@ public class FourWheelDriveOp extends OpMode {
     @Override
     public void init() {
         dashboard = new TelemetryDashboardAndLog();
+        ComponentStatus = "";
 
         motorRightFront = hardwareMap.dcMotor.get("motor_rt_front");
         motorRightRear = hardwareMap.dcMotor.get("motor_rt_rear");
@@ -106,10 +108,12 @@ public class FourWheelDriveOp extends OpMode {
 
         try {
             grabberRack = hardwareMap.dcMotor.get("grabber_rack");
+            ComponentStatus += "G";
         }
         catch (Exception E)
         {
             grabberRack = null;
+            ComponentStatus += "-";
         }
 
         List<Servo> activeServos = new ArrayList<Servo>();
@@ -119,28 +123,34 @@ public class FourWheelDriveOp extends OpMode {
         try {
             claw = hardwareMap.servo.get("claw"); // channel 6
             activeServos.add(claw);
+            ComponentStatus += "c";
         }
         catch (Exception E)
         {
             claw = null;
+            ComponentStatus += "-";
         }
 
         try {
             grabberRotator = hardwareMap.servo.get("grabberRotator"); // channel 1
             activeServos.add(grabberRotator);
+            ComponentStatus += "g";
         }
         catch (Exception E)
         {
             grabberRotator = null;
+            ComponentStatus += "-";
         }
 
         try {
             continuous = hardwareMap.servo.get("continuous");
             activeServos.add(continuous);
+            ComponentStatus += "C";
         }
         catch (Exception E)
         {
             continuous = null;
+            ComponentStatus += "-";
         }
 
         wheelControllerFront = hardwareMap.dcMotorController.get("wheels_front");
@@ -168,19 +178,19 @@ public class FourWheelDriveOp extends OpMode {
         /// set up the dashboard with callbacks that are activated when needed
         /// supplants the telemetry object
         ///
-        dashboard.addLine(dashboard.item("continuous ", new IFunc<Object>()
+        dashboard.addLine(dashboard.item(ComponentStatus + ": continuous ", new IFunc<Object>()
             {
-                @Override public Double value() {return continuous.getPosition();}
+                @Override public String value() {return String.format("%2f", continuous.getPosition());}
             }));
 
         dashboard.addLine(dashboard.item("front L/R motor ", new IFunc<Object>()
         {
-            @Override public String value() {return String.format("%2f", motorLeftFront.getPower()) + "/"+ String.format("%2f", motorRightFront.getPower());}
+            @Override public String value() {return String.format("%.2f", motorLeftFront.getPower()) + "/"+ String.format("%.2f", motorRightFront.getPower());}
         }));
 
         dashboard.addLine(dashboard.item("rear L/R motor ", new IFunc<Object>()
         {
-            @Override public String value() {return String.format("%2f", motorLeftRear.getPower()) + "/" + String.format("%2f", motorRightRear.getPower());}
+            @Override public String value() {return String.format("%.2f", motorLeftRear.getPower()) + "/" + String.format("%.2f", motorRightRear.getPower());}
         }));
 
         /// there is a chance during testing that either the grabberRack or the grabberRotator will be missing
@@ -296,7 +306,7 @@ public class FourWheelDriveOp extends OpMode {
         /// using gamepad2
         /// left_stick_y means grabberRack up ranges from -1 to 1, where -1 is full up, and 1 is full down
         ///
-        float grabberRackAmount = -Range.clip(gamepad2.left_stick_y, -1.0f, 1.0f);
+        float grabberRackAmount = Range.clip(gamepad2.left_stick_y, -1.0f, 1.0f);
         if (grabberRack != null) { grabberRack.setPower(grabberRackAmount); }
 
         /// grabberRotatorPosition using gamepad2

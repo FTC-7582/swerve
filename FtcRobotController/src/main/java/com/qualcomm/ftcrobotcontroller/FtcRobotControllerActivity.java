@@ -523,8 +523,10 @@ public class FtcRobotControllerActivity extends Activity {
             this.prevMonitor.onStateChange(newState);
             RobotStateTransitionNotifier.onRobotStateChange(newState);
 
-            if (newState == RobotState.RUNNING)
-                this.activity.nameVerifier.verifyLegalPhoneNames();
+              // TODO: we currently have no way to change the phone names
+              //
+//            if (newState == RobotState.RUNNING)
+//                this.activity.nameVerifier.verifyLegalPhoneNames();
             }
         }
 
