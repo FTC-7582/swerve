@@ -250,18 +250,18 @@ public class FourWheelDriveOp extends OpMode {
      * Gamepad 1 controls the motors via the left stick, and it controls the wrist/claw via the a,b,
      * x, y buttons
      */
-        if (gamepad1.dpad_left) {
-            motorLeftFront.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
-            motorRightFront.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
-            motorLeftRear.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
-            motorRightRear.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
-        }
-        if (gamepad1.dpad_right) {
-            motorLeftFront.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
-            motorRightFront.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
-            motorLeftRear.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
-            motorRightRear.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
-        }
+//        if (gamepad1.dpad_left) {
+//            motorLeftFront.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
+//            motorRightFront.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
+//            motorLeftRear.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
+//            motorRightRear.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
+//        }
+//        if (gamepad1.dpad_right) {
+//            motorLeftFront.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
+//            motorRightFront.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
+//            motorLeftRear.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
+//            motorRightRear.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
+//        }
 
         if (grabberRack != null) { grabberRack.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS); }
 
@@ -274,6 +274,15 @@ public class FourWheelDriveOp extends OpMode {
         right = Range.clip(right, -1, 1);
         left = Range.clip(left, -1, 1);
 
+        /// if the right bumper is being held in, then allow more precise control of throttle
+        ///
+        int changeSpeed = throttleFastChange;
+        if (gamepad1.right_bumper)
+        { changeSpeed = throttleSlowChange; }
+
+        right = throttle(motorRightFront.getPower(),right, changeSpeed);
+        left = throttle(motorLeftFront.getPower(), left, changeSpeed);
+
         // write the values to the motors
         motorRightFront.setPower(right);
         motorLeftFront.setPower(left);
@@ -282,20 +291,16 @@ public class FourWheelDriveOp extends OpMode {
 
         /// Continuous servo
         /// X means set continuousPosition to 0.0 -- go left
-        /// Y means add a delta
+        /// Y means stop
         /// B means set continuousPosition to 1.0 -- go right
-        /// A means subtract a delta
         ///
         if (gamepad1.x) {
-            continuousPosition = 0.0f;
+            continuousPosition = 0.1f;
         } else if (gamepad1.y) {
-            continuousPosition += continuousStep;
+            continuousPosition = continuousMiddle;
         } else if (gamepad1.b) {
-            continuousPosition = 1.0f;
-        } else if (gamepad1.a) {
-            continuousPosition -= continuousStep;
+            continuousPosition = 0.9f;
         }
-
         /// if we are close enough to the middle, then call it the middle
         ///
         if (Math.abs(continuousPosition - continuousMiddle) < continuousStep / 2.0)
@@ -306,7 +311,14 @@ public class FourWheelDriveOp extends OpMode {
         /// using gamepad2
         /// left_stick_y means grabberRack up ranges from -1 to 1, where -1 is full up, and 1 is full down
         ///
+
+        changeSpeed = throttleFastChange;
+        if (gamepad2.right_bumper)
+        { changeSpeed = throttleSlowChange; }
+
         float grabberRackAmount = Range.clip(gamepad2.left_stick_y, -1.0f, 1.0f);
+        grabberRackAmount = throttle(grabberRack.getPower(), grabberRackAmount, changeSpeed);
+
         if (grabberRack != null) { grabberRack.setPower(grabberRackAmount); }
 
         /// grabberRotatorPosition using gamepad2
@@ -383,5 +395,33 @@ public class FourWheelDriveOp extends OpMode {
 //        motorLeftRear.setPower(left);
 //      } */
         dashboard.update(); // telemetry will get updated regularly and sent back without saturating the link or processor
+    }
+
+    /// give an acceleration profile to the throttle according to the equation
+    ///
+    /// IP + (1 - IP) * JA ^ x
+    ///  where IP == initial power
+    ///        JA == joystick amount
+    ///         x is steepness (use smaller numbers for steeper curves
+    ///
+    static int throttleFastChange = 2;
+    static int throttleSlowChange = 3;
+    static float joystickDeadband = 0.005f;     // joystick readings less than this should be treated as 0.0
+
+    private float throttle(double initialPower, float joystickAmount, int steepness)
+    {
+        initialPower = Range.clip(initialPower, 0, 1);
+        joystickAmount = Range.clip(joystickAmount, -1, 1);
+
+        /// special case for zero -- stop
+        ///
+        if (Math.abs(joystickAmount) < joystickDeadband)
+        { return 0.0F; }
+
+        float temp = 1.0f;
+        for (int i = 1; i < steepness; i++)
+        { temp *= 1.0f - initialPower; }
+
+        return Math.max((float) initialPower + temp, 0.0f);
     }
 }
