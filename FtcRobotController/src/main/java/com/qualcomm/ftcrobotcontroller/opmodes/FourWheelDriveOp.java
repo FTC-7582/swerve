@@ -413,8 +413,8 @@ public class FourWheelDriveOp extends OpMode {
     ///
     static float joystickDeadband = 0.009f;     // joystick readings less than this should be treated as 0.0
 
-    static float gainHigh = 0.7f;
-    static float gainLow = 0.3f;
+    static float gainHigh = 0.3f;
+    static float gainLow = 0.9f;
 
     private float throttle(float joystickAmount, float gain)
     {
