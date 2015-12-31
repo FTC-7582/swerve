@@ -53,43 +53,44 @@ import static org.swerverobotics.library.ClassFactory.createEasyServoController;
  * Enables control of the robot via the gamepad
  */
 public class FourWheelDriveOp extends OpMode {
-
-    // position of the claw servo
-    double clawPosition;
-
-    // amount to change the claw servo position by
-    double clawDelta = 0.01;
-
     DcMotorController wheelControllerFront;
     DcMotorController wheelControllerRear;
-    DcMotorController grabberRackController;
+    DcMotorController grabberRackAndWinchController;
 
-    DcMotor motorRightFront;
-    DcMotor motorLeftFront;
-    DcMotor motorRightRear;
-    DcMotor motorLeftRear;
-    DcMotor grabberRack;
+    DcMotor rightFrontMotor;
+    DcMotor leftFrontMotor;
+    DcMotor rightRearMotor;
+    DcMotor leftRearMotor;
+    DcMotor grabberRackMotor;       // the picker-upper
+    DcMotor winchMotor;             // the lifter-upper
 
-    Servo claw;
+    /// the winchServo raises and lowers the winch (lifter-upper)
+    ///
+    Servo winchServo;
+    double winchPosition = winchPositionLower;
+    static double winchPositionLower = 0.0;
+    static double winchStep = 1.0 / 180.0; // step in 1 degree increments
 
-    Servo grabberRotator;
+    Servo grabberRotatorServo;
+    double grabberRotatorPosition = grabberRotatorMiddle;
     static double grabberRotatorMiddle = 0.5;
     static double grabberRotatorStep = 0.1; //5.0 / 180.0; // 0.5 degrees
-    double grabberRotatorPosition = grabberRotatorMiddle;
 
 
+    /// I found this on the web. Don't know if it is true -JGM
+    ///
     //    Given that the HiTechic Servo Controller allows setting of the PWM output from 750 to 2250 microseconds
     //    with a step resolution of 5.88 microseconds anything under servo[foo] = 42 puts the servo into the zombie state.
     //    The math is the same for the other end of the scale (212).
     //
     //    Anything in between those two values will fall somewhere within the 1260 degree rotation of the servo.
-
-    Servo winchServo;
-    double winchPosition;
-    static double winchRotateLeft = 43.0 / 256.0;
-    static double winchMiddle = 0.5;
-    static double winchRotateRight = 211.0 / 256.0;
-    static double winchRotateStep = 0.1;
+    //
+    Servo continuousServo;
+    double continuousServoMovement;
+    static double continuousRotateLeft = 43.0 / 256.0;
+    static double continuousMiddle = 0.5;
+    static double continuousRotateRight = 211.0 / 256.0;
+    static double continuousRotateStep = 0.1;
 
     TelemetryDashboardAndLog dashboard;
     String ComponentStatus;
@@ -108,18 +109,28 @@ public class FourWheelDriveOp extends OpMode {
         dashboard = new TelemetryDashboardAndLog();
         ComponentStatus = "";
 
-        motorRightFront = hardwareMap.dcMotor.get("motor_rt_front");
-        motorRightRear = hardwareMap.dcMotor.get("motor_rt_rear");
-        motorLeftFront = hardwareMap.dcMotor.get("motor_lt_front");
-        motorLeftRear = hardwareMap.dcMotor.get("motor_lt_rear");
+        rightFrontMotor = hardwareMap.dcMotor.get("motor_rt_front");
+        rightRearMotor = hardwareMap.dcMotor.get("motor_rt_rear");
+        leftFrontMotor = hardwareMap.dcMotor.get("motor_lt_front");
+        leftRearMotor = hardwareMap.dcMotor.get("motor_lt_rear");
 
         try {
-            grabberRack = hardwareMap.dcMotor.get("grabber_rack");
+            grabberRackMotor = hardwareMap.dcMotor.get("grabber_rack");
             ComponentStatus += "G";
         }
         catch (Exception E)
         {
-            grabberRack = null;
+            grabberRackMotor = null;
+            ComponentStatus += "-";
+        }
+
+        try {
+            winchMotor = hardwareMap.dcMotor.get("winch_motor");
+            ComponentStatus += "W";
+        }
+        catch (Exception E)
+        {
+            winchMotor = null;
             ComponentStatus += "-";
         }
 
@@ -128,31 +139,9 @@ public class FourWheelDriveOp extends OpMode {
         /// code to make the servos optional
         ///
         try {
-            claw = hardwareMap.servo.get("claw"); // channel 6
-            activeServos.add(claw);
-            ComponentStatus += "c";
-        }
-        catch (Exception E)
-        {
-            claw = null;
-            ComponentStatus += "-";
-        }
-
-        try {
-            grabberRotator = hardwareMap.servo.get("grabberRotator"); // channel 1
-            activeServos.add(grabberRotator);
-            ComponentStatus += "g";
-        }
-        catch (Exception E)
-        {
-            grabberRotator = null;
-            ComponentStatus += "-";
-        }
-
-        try {
-            winchServo = hardwareMap.servo.get("continuous");
+            winchServo = hardwareMap.servo.get("winch_servo"); // channel 6
             activeServos.add(winchServo);
-            ComponentStatus += "C";
+            ComponentStatus += "w";
         }
         catch (Exception E)
         {
@@ -160,23 +149,45 @@ public class FourWheelDriveOp extends OpMode {
             ComponentStatus += "-";
         }
 
+        try {
+            grabberRotatorServo = hardwareMap.servo.get("grabberRotator"); // channel 1
+            activeServos.add(grabberRotatorServo);
+            ComponentStatus += "g";
+        }
+        catch (Exception E)
+        {
+            grabberRotatorServo = null;
+            ComponentStatus += "-";
+        }
+
+        try {
+            continuousServo = hardwareMap.servo.get("continuous");
+            activeServos.add(continuousServo);
+            ComponentStatus += "C";
+        }
+        catch (Exception E)
+        {
+            continuousServo = null;
+            ComponentStatus += "-";
+        }
+
         wheelControllerFront = hardwareMap.dcMotorController.get("wheels_front");
         wheelControllerRear = hardwareMap.dcMotorController.get("wheels_rear");
 
         try {
-            grabberRackController = hardwareMap.dcMotorController.get("rack_controller");
+            grabberRackAndWinchController = hardwareMap.dcMotorController.get("rack_controller");
         }
         catch (Exception E)
         {
-            grabberRackController = null;
+            grabberRackAndWinchController = null;
         }
 
         /// after the call to createEasyMotorController, the motor controllers
         /// work normally -- no looping mod 17 or waiting for the mode to switch
         ///
-        createEasyMotorController(this, motorRightFront, motorLeftFront);
-        createEasyMotorController(this, motorRightRear, motorLeftRear);
-        if (grabberRackController != null) { createEasyMotorController(this, grabberRack, null); }
+        createEasyMotorController(this, rightFrontMotor, leftFrontMotor);
+        createEasyMotorController(this, rightRearMotor, leftRearMotor);
+        if (grabberRackAndWinchController != null) { createEasyMotorController(this, grabberRackMotor, winchMotor); }
 
         /// swerve robootics interface makes the servos more synchronous
         ///
@@ -187,32 +198,48 @@ public class FourWheelDriveOp extends OpMode {
         ///
         dashboard.addLine(dashboard.item(ComponentStatus + ": continuous ", new IFunc<Object>()
             {
-                @Override public String value() {return String.format("%.2f", winchServo.getPosition());}
+                @Override public String value() {return String.format("%.2f", continuousServo.getPosition());}
             }));
 
         dashboard.addLine(dashboard.item("front L/R motor ", new IFunc<Object>()
         {
-            @Override public String value() {return String.format("%.2f", motorLeftFront.getPower()) + "/"+ String.format("%.2f", motorRightFront.getPower());}
+            @Override public String value() {return String.format("%.2f", leftFrontMotor.getPower()) + "/"+ String.format("%.2f", rightFrontMotor.getPower());}
         }));
 
         dashboard.addLine(dashboard.item("rear L/R motor ", new IFunc<Object>()
         {
-            @Override public String value() {return String.format("%.2f", motorLeftRear.getPower()) + "/" + String.format("%.2f", motorRightRear.getPower());}
+            @Override public String value() {return String.format("%.2f", leftRearMotor.getPower()) + "/" + String.format("%.2f", rightRearMotor.getPower());}
         }));
 
         /// there is a chance during testing that either the grabberRack or the grabberRotator will be missing
         /// the callback (e.g. lambda) function checks if either of these is null and simply returns a blank.
         ///
-        dashboard.addLine(dashboard.item("rack motor/servo ", new IFunc<Object>() {
+        dashboard.addLine(dashboard.item("grabber motor/servo ", new IFunc<Object>() {
             @Override
             public String value() {
                 String grabberRackAsString = "";
                 String grabberRotatorAsString = "";
 
-                if (grabberRack != null) { grabberRackAsString = String.format("%.2f", grabberRack.getPower()); }
-                if (grabberRotator != null) { grabberRotatorAsString = String.format("%.2f", grabberRotator.getPosition()); }
+                if (grabberRackMotor != null) { grabberRackAsString = String.format("%.2f", grabberRackMotor.getPower()); }
+                if (grabberRotatorServo != null) { grabberRotatorAsString = String.format("%.2f", grabberRotatorServo.getPosition()); }
 
                 return grabberRackAsString + "/" + grabberRotatorAsString;
+            }
+        }));
+
+        /// there is a chance during testing that either the grabberRack or the grabberRotator will be missing
+        /// the callback (e.g. lambda) function checks if either of these is null and simply returns a blank.
+        ///
+        dashboard.addLine(dashboard.item("winch motor/servo ", new IFunc<Object>() {
+            @Override
+            public String value() {
+                String winchMotorAsString = "";
+                String winchServoAsString = "";
+
+                if (winchMotor != null) { winchMotorAsString = String.format("%.2f", winchMotor.getPower()); }
+                if (winchServo != null) { winchServoAsString = String.format("%.2f", winchServo.getPosition()); }
+
+                return winchMotorAsString + "/" + winchServoAsString;
             }
         }));
 
@@ -228,19 +255,19 @@ public class FourWheelDriveOp extends OpMode {
 
         /// only the motor on the left side runs in reverse
         ///
-        motorLeftFront.setDirection(DcMotor.Direction.REVERSE);
-        motorLeftRear.setDirection(DcMotor.Direction.REVERSE);
+        leftFrontMotor.setDirection(DcMotor.Direction.REVERSE);
+        leftRearMotor.setDirection(DcMotor.Direction.REVERSE);
 
         // set the mode
         // Nxt devices start up in "write" mode by default, so no need to switch device modes here.
-        motorLeftFront.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
-        motorRightFront.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
-        motorLeftRear.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
-        motorRightRear.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
-        if (grabberRack != null) { grabberRack.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS); }
+        leftFrontMotor.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
+        rightFrontMotor.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
+        leftRearMotor.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
+        rightRearMotor.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
+        if (grabberRackMotor != null) { grabberRackMotor.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS); }
 
-        clawPosition = 0.5;
-        winchPosition = winchMiddle;
+        winchPosition = winchPositionLower;
+        continuousServoMovement = continuousMiddle;
         grabberRotatorPosition = grabberRotatorMiddle;
     }
 
@@ -291,23 +318,23 @@ public class FourWheelDriveOp extends OpMode {
         leftPower = throttle(leftPower, gain);
 
         /// Continuous servo
-        /// X means set winchPosition to go left
+        /// X means set continuousServoPosition to go left
         /// Y means stop
-        /// B means set winchPosition to go right
-        /// A means move the winch positive 10% of travel (Experimental)
-        /// A + Left Bumper means move the winch negative 10% of travel (Experimental)
+        /// B means set continuousServoPosition to go right
+        /// A means move the continuous servo positive 10% of travel (Experimental)
+        /// A + Left Bumper means move the continuous servo negative 10% of travel (Experimental)
         ///
         if (gamepad1.x) {
-            winchPosition = winchRotateLeft;
+            continuousServoMovement = continuousRotateLeft;
         } else if (gamepad1.y) {
-            winchPosition = winchMiddle;
+            continuousServoMovement = continuousMiddle;
         } else if (gamepad1.b) {
-            winchPosition = winchRotateRight;
+            continuousServoMovement = continuousRotateRight;
         } else if (gamepad1.a) {
             if (gamepad1.left_bumper)
-            { winchPosition -= winchRotateStep; }
+            { continuousServoMovement -= continuousRotateStep; }
             else
-            { winchPosition += winchRotateStep; }
+            { continuousServoMovement += continuousRotateStep; }
         }
 
         /// using gamepad2
@@ -318,8 +345,15 @@ public class FourWheelDriveOp extends OpMode {
         if (gamepad2.right_bumper)
         { gain = gainLow; }
 
+        /// gamepad2.left_stick_y is used to raise and lower the rack on the grabber (picker-upper)
+        ///
         float grabberRackPower = Range.clip(gamepad2.left_stick_y, -1.0f, 1.0f);
         grabberRackPower = throttle(grabberRackPower, gain);
+
+        /// gamepad2.right_stick_y is used to deploy and retract the winch (lifter-upper)
+        ///
+        float winchPower = Range.clip(gamepad2.right_stick_y, -1.0f, 1.0f);
+        winchPower = throttle(winchPower, gain);
 
         /// grabberRotatorPosition using gamepad2
         /// Y means go to middle
@@ -341,24 +375,36 @@ public class FourWheelDriveOp extends OpMode {
             grabberRotatorPosition = grabberRotatorMiddle;
         }
 
+        /// winchPosition ujsing gamepad2 dpad
+        /// down is to lower the winch position
+        /// up is to raise the winch position
+        ///
+        if (gamepad2.dpad_down) {
+            winchPosition -= winchStep;
+        } else if (gamepad2.dpad_up) {
+            winchPosition += winchStep;
+        }
+
         // clip the position values so that they never exceed 0..1
         grabberRotatorPosition = Range.clip(grabberRotatorPosition, 0, 1);
-        clawPosition = Range.clip(clawPosition, 0, 1);
         winchPosition = Range.clip(winchPosition, 0, 1);
+        continuousServoMovement = Range.clip(continuousServoMovement, 0, 1);
 
         /// write position values to the servos
         ///
-        if (grabberRotator != null) { grabberRotator.setPosition(grabberRotatorPosition); }
-        if (claw != null) { claw.setPosition(clawPosition); }
+        if (grabberRotatorServo != null) { grabberRotatorServo.setPosition(grabberRotatorPosition); }
         if (winchServo != null) { winchServo.setPosition(winchPosition); }
+        if (continuousServo != null) { continuousServo.setPosition(continuousServoMovement); }
 
         /// write the motor powers
         ///
-        if (grabberRack != null) { grabberRack.setPower(grabberRackPower); }
-        motorRightFront.setPower(rightPower);
-        motorLeftFront.setPower(leftPower);
-        motorRightRear.setPower(rightPower);
-        motorLeftRear.setPower(leftPower);
+        if (grabberRackMotor != null) { grabberRackMotor.setPower(grabberRackPower); }
+        if (winchMotor != null) { winchMotor.setPower(winchPower); }
+
+        rightFrontMotor.setPower(rightPower);
+        leftFrontMotor.setPower(leftPower);
+        rightRearMotor.setPower(rightPower);
+        leftRearMotor.setPower(leftPower);
 
 //    /*
 //     * Gamepad 2
