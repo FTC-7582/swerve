@@ -263,31 +263,25 @@ public class FourWheelDriveOp extends OpMode {
 //            motorRightRear.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
 //        }
 
-        if (grabberRack != null) { grabberRack.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS); }
+//        if (grabberRack != null) { grabberRack.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS); }
 
         // throttle:  left_stick_y ranges from -1 to 1, where -1 is full up,  and 1 is full down
         // direction: left_stick_x ranges from -1 to 1, where -1 is full left and 1 is full right
-        float right = -gamepad1.right_stick_y;
-        float left = -gamepad1.left_stick_y;
+        float rightPower = -gamepad1.right_stick_y;
+        float leftPower = -gamepad1.left_stick_y;
 
         // clip the right/left values so that the values never exceed +/- 1
-        right = Range.clip(right, -1, 1);
-        left = Range.clip(left, -1, 1);
+        rightPower = Range.clip(rightPower, -1, 1);
+        leftPower = Range.clip(leftPower, -1, 1);
 
         /// if the right bumper is being held in, then allow more precise control of throttle
-        ///
-        int changeSpeed = throttleFastChange;
+        /// by making significantly less response at lower throttle positions (low gain)
+        float gain = gainHigh;
         if (gamepad1.right_bumper)
-        { changeSpeed = throttleSlowChange; }
+        { gain = gainLow; }
 
-        right = throttle(motorRightFront.getPower(),right, changeSpeed);
-        left = throttle(motorLeftFront.getPower(), left, changeSpeed);
-
-        // write the values to the motors
-        motorRightFront.setPower(right);
-        motorLeftFront.setPower(left);
-        motorRightRear.setPower(right);
-        motorLeftRear.setPower(left);
+        rightPower = throttle(rightPower, gain);
+        leftPower = throttle(leftPower, gain);
 
         /// Continuous servo
         /// X means set continuousPosition to 0.0 -- go left
@@ -309,17 +303,15 @@ public class FourWheelDriveOp extends OpMode {
         }
 
         /// using gamepad2
-        /// left_stick_y means grabberRack up ranges from -1 to 1, where -1 is full up, and 1 is full down
+        /// if the right bumper is being held in, then allow more precise control of rack
+        /// by making significantly less response at lower throttle positions (low gain)
         ///
-
-        changeSpeed = throttleFastChange;
+        gain = gainHigh;
         if (gamepad2.right_bumper)
-        { changeSpeed = throttleSlowChange; }
+        { gain = gainLow; }
 
-        float grabberRackAmount = Range.clip(gamepad2.left_stick_y, -1.0f, 1.0f);
-        grabberRackAmount = throttle(grabberRack.getPower(), grabberRackAmount, changeSpeed);
-
-        if (grabberRack != null) { grabberRack.setPower(grabberRackAmount); }
+        float grabberRackPower = Range.clip(gamepad2.left_stick_y, -1.0f, 1.0f);
+        grabberRackPower = throttle(grabberRackPower, gain);
 
         /// grabberRotatorPosition using gamepad2
         /// Y means go to middle
@@ -346,10 +338,19 @@ public class FourWheelDriveOp extends OpMode {
         clawPosition = Range.clip(clawPosition, 0, 1);
         continuousPosition = Range.clip(continuousPosition, 0, 1);
 
-        // write position values to the servos
+        /// write position values to the servos
+        ///
         if (grabberRotator != null) { grabberRotator.setPosition(grabberRotatorPosition); }
         if (claw != null) { claw.setPosition(clawPosition); }
         if (continuous != null) { continuous.setPosition(continuousPosition); }
+
+        /// write the motor powers
+        ///
+        if (grabberRack != null) { grabberRack.setPower(grabberRackPower); }
+        motorRightFront.setPower(rightPower);
+        motorLeftFront.setPower(leftPower);
+        motorRightRear.setPower(rightPower);
+        motorLeftRear.setPower(leftPower);
 
 //    /*
 //     * Gamepad 2
@@ -399,29 +400,37 @@ public class FourWheelDriveOp extends OpMode {
 
     /// give an acceleration profile to the throttle according to the equation
     ///
-    /// IP + (1 - IP) * JA ^ x
-    ///  where IP == initial power
-    ///        JA == joystick amount
-    ///         x is steepness (use smaller numbers for steeper curves
+    /// y=G*((x-D)/(1-D))^3+(1-G)*(x-D)/(1-D); Where X is in value, D is Deadband and G is Gain (0..1)
+    /// plug this equation into https://www.desmos.com/calculator an vary the values for
     ///
-    static int throttleFastChange = 2;
-    static int throttleSlowChange = 3;
-    static float joystickDeadband = 0.005f;     // joystick readings less than this should be treated as 0.0
+    ///  gain (0.0 <= G <= 1.0) and
+    ///  deadband (0.0 <= D <= 1.0)
+    ///
+    ///  notice that the curve always goes through 1.0. The paramters allow us to make
+    ///  the more precise (at low throttle positions, more input is required)
+    ///
+    ///  gainHigh is more linear response than gainLow
+    ///
+    static float joystickDeadband = 0.009f;     // joystick readings less than this should be treated as 0.0
 
-    private float throttle(double initialPower, float joystickAmount, int steepness)
+    static float gainHigh = 0.7f;
+    static float gainLow = 0.3f;
+
+    private float throttle(float joystickAmount, float gain)
     {
-        initialPower = Range.clip(initialPower, 0, 1);
-        joystickAmount = Range.clip(joystickAmount, -1, 1);
-
-        /// special case for zero -- stop
+        /// save the sign of the joystick and use the absolute value -- this function
+        /// only works for values >0
         ///
-        if (Math.abs(joystickAmount) < joystickDeadband)
-        { return 0.0F; }
+        float sign = Math.signum(joystickAmount);
+        joystickAmount = Math.abs(joystickAmount);
 
-        float temp = 1.0f;
-        for (int i = 1; i < steepness; i++)
-        { temp *= 1.0f - initialPower; }
+        /// cube term without calling the Math.pow function
+        ///
+        float temp = (joystickAmount-joystickDeadband)/(1.0f-joystickDeadband);
+        for (int i = 1; i < 3; i++)
+        { temp *= temp; }
 
-        return Math.max((float) initialPower + temp, 0.0f);
+        float ret = gain * (temp + (1.0f - gain) * temp);
+        return Math.max(ret, 0.0f) * sign;
     }
 }
