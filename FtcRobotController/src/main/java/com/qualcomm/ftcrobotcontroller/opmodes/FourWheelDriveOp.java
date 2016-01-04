@@ -196,10 +196,20 @@ public class FourWheelDriveOp extends OpMode {
         /// set up the dashboard with callbacks that are activated when needed
         /// supplants the telemetry object
         ///
-        dashboard.addLine(dashboard.item(ComponentStatus + ": continuous ", new IFunc<Object>()
-            {
-                @Override public String value() {return String.format("%.2f", continuousServo.getPosition());}
+        if (continuousServo == null)
+        {
+            dashboard.addLine(dashboard.item(ComponentStatus, new IFunc<Object>() {
+                @Override
+                public String value() { return ""; }}));
+        }
+        else {
+            dashboard.addLine(dashboard.item(ComponentStatus + ": continuous ", new IFunc<Object>() {
+                @Override
+                public String value() {
+                    return String.format("%.2f", continuousServo.getPosition());
+                }
             }));
+        }
 
         dashboard.addLine(dashboard.item("front L/R motor ", new IFunc<Object>()
         {
@@ -481,8 +491,8 @@ public class FourWheelDriveOp extends OpMode {
         /// cube term without calling the Math.pow function
         ///
         float temp = (joystickAmount-joystickDeadband)/(1.0f-joystickDeadband);
-        for (int i = 1; i < 3; i++)
-        { temp *= temp; }
+        temp *= temp;
+        temp *= temp;
 
         float ret = gain * (temp + (1.0f - gain) * temp);
         return Math.max(ret, 0.0f) * sign;
