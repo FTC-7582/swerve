@@ -64,6 +64,11 @@ public class FourWheelDriveOp extends OpMode {
     DcMotor grabberRackMotor;       // the picker-upper
     DcMotor winchMotor;             // the lifter-upper
 
+    float leftPower;
+    float rightPower;
+    float grabberRackPower;
+    float winchMotorPower;
+
     /// the winchServo raises and lowers the winch (lifter-upper)
     ///
     Servo winchServo;
@@ -73,8 +78,8 @@ public class FourWheelDriveOp extends OpMode {
 
     Servo grabberRotatorServo;
     double grabberRotatorPosition = grabberRotatorMiddle;
-    static double grabberRotatorMiddle = 0.5;
-    static double grabberRotatorStep = 0.1; //5.0 / 180.0; // 0.5 degrees
+    static double grabberRotatorMiddle = 0.2; //0.5;
+    static double grabberRotatorStep = 0.025; //5.0 / 180.0; // 0.5 degrees
 
 
     /// I found this on the web. Don't know if it is true -JGM
@@ -213,7 +218,7 @@ public class FourWheelDriveOp extends OpMode {
 
         dashboard.addLine(dashboard.item("front L/R motor ", new IFunc<Object>()
         {
-            @Override public String value() {return String.format("%.2f", leftFrontMotor.getPower()) + "/"+ String.format("%.2f", rightFrontMotor.getPower());}
+            @Override public String value() {return String.format("%.2f", leftPower) + "/"+ String.format("%.2f", rightPower);}
         }));
 
         dashboard.addLine(dashboard.item("rear L/R motor ", new IFunc<Object>()
@@ -224,16 +229,20 @@ public class FourWheelDriveOp extends OpMode {
         /// there is a chance during testing that either the grabberRack or the grabberRotator will be missing
         /// the callback (e.g. lambda) function checks if either of these is null and simply returns a blank.
         ///
-        dashboard.addLine(dashboard.item("grabber motor/servo ", new IFunc<Object>() {
+        dashboard.addLine(dashboard.item("grabber servo/motor/enc/L/U ", new IFunc<Object>() {
             @Override
             public String value() {
                 String grabberRackAsString = "";
                 String grabberRotatorAsString = "";
+                String grabberEncoderAsString = "";
 
-                if (grabberRackMotor != null) { grabberRackAsString = String.format("%.2f", grabberRackMotor.getPower()); }
                 if (grabberRotatorServo != null) { grabberRotatorAsString = String.format("%.2f", grabberRotatorServo.getPosition()); }
+                if (grabberRackMotor != null) {
+                    grabberRackAsString = String.format("%.2f", grabberRackPower);
+                    grabberEncoderAsString = String.format("%d", grabberRackMotor.getCurrentPosition());
+                }
 
-                return grabberRackAsString + "/" + grabberRotatorAsString;
+                return grabberRotatorAsString + "/" + grabberRackAsString + "/" + grabberEncoderAsString + "/" + grabberRackLowerEncoder + "/" + grabberRackUpperEncoder;
             }
         }));
 
@@ -246,7 +255,7 @@ public class FourWheelDriveOp extends OpMode {
                 String winchMotorAsString = "";
                 String winchServoAsString = "";
 
-                if (winchMotor != null) { winchMotorAsString = String.format("%.2f", winchMotor.getPower()); }
+                if (winchMotor != null) { winchMotorAsString = String.format("%.2f", winchMotorPower); }
                 if (winchServo != null) { winchServoAsString = String.format("%.2f", winchServo.getPosition()); }
 
                 return winchMotorAsString + "/" + winchServoAsString;
@@ -267,6 +276,7 @@ public class FourWheelDriveOp extends OpMode {
         ///
         leftFrontMotor.setDirection(DcMotor.Direction.REVERSE);
         leftRearMotor.setDirection(DcMotor.Direction.REVERSE);
+        if (grabberRackMotor != null) { grabberRackMotor.setDirection(DcMotor.Direction.REVERSE); }
 
         // set the mode
         // Nxt devices start up in "write" mode by default, so no need to switch device modes here.
@@ -274,7 +284,10 @@ public class FourWheelDriveOp extends OpMode {
         rightFrontMotor.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
         leftRearMotor.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
         rightRearMotor.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS);
-        if (grabberRackMotor != null) { grabberRackMotor.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS); }
+
+        /// zero the encoder so things don't move on startup
+        ///
+        if (grabberRackMotor != null) { grabberRackMotor.setMode(DcMotorController.RunMode.RESET_ENCODERS); }
 
         winchPosition = winchPositionLower;
         continuousServoMovement = continuousMiddle;
@@ -288,6 +301,7 @@ public class FourWheelDriveOp extends OpMode {
     @Override
     public void loop() {
 
+    //    if (grabberRackMotor != null) { grabberRackMotor.setMode(DcMotorController.RunMode.RUN_WITHOUT_ENCODERS); }
     /*
      * Gamepad 1
      *
@@ -311,8 +325,8 @@ public class FourWheelDriveOp extends OpMode {
 
         // throttle:  left_stick_y ranges from -1 to 1, where -1 is full up,  and 1 is full down
         // direction: left_stick_x ranges from -1 to 1, where -1 is full left and 1 is full right
-        float rightPower = -gamepad1.right_stick_y;
-        float leftPower = -gamepad1.left_stick_y;
+        rightPower = -gamepad1.right_stick_y;
+        leftPower = -gamepad1.left_stick_y;
 
         // clip the right/left values so that the values never exceed +/- 1
         rightPower = Range.clip(rightPower, -1, 1);
@@ -348,6 +362,9 @@ public class FourWheelDriveOp extends OpMode {
         }
 
         /// using gamepad2
+        ///
+        DoGrabberRack();
+
         /// if the right bumper is being held in, then allow more precise control of rack
         /// by making significantly less response at lower throttle positions (low gain)
         ///
@@ -357,26 +374,33 @@ public class FourWheelDriveOp extends OpMode {
 
         /// gamepad2.left_stick_y is used to raise and lower the rack on the grabber (picker-upper)
         ///
-        float grabberRackPower = Range.clip(gamepad2.left_stick_y, -1.0f, 1.0f);
+        grabberRackPower = Range.clip(-gamepad2.left_stick_y, -1.0f, 1.0f);
         grabberRackPower = throttle(grabberRackPower, gain);
 
         /// gamepad2.right_stick_y is used to deploy and retract the winch (lifter-upper)
         ///
-        float winchPower = Range.clip(gamepad2.right_stick_y, -1.0f, 1.0f);
-        winchPower = throttle(winchPower, gain);
+        winchMotorPower = Range.clip(-gamepad2.right_stick_y, -1.0f, 1.0f);
+        winchMotorPower = throttle(winchMotorPower, gain);
 
         /// grabberRotatorPosition using gamepad2
         /// Y means go to middle
         /// X means decrease
         /// B means increase
         ///
-        if (gamepad2.y) {
-            grabberRotatorPosition = grabberRotatorMiddle;
-        } else if (gamepad2.x) {
-            grabberRotatorPosition -= grabberRotatorStep;
-        } else if (gamepad2.b) {
-            grabberRotatorPosition += grabberRotatorStep;
-        }
+//        if (gamepad2.y) {
+//            grabberRotatorPosition = grabberRotatorMiddle;
+//        } else if (gamepad2.x) {
+//            grabberRotatorPosition -= grabberRotatorStep;
+//        } else if (gamepad2.b) {
+//            grabberRotatorPosition += grabberRotatorStep;
+//        }
+
+        /// grabberRotatorPosition using gamepad2
+        /// add up the values of the triggers and set to deflection from the middle
+        ///
+        float leftTrigger = -gamepad2.left_trigger / 2.0f;
+        float rightTrigger = gamepad2.right_trigger / 2.0f;
+        grabberRotatorPosition = leftTrigger + rightTrigger + grabberRotatorMiddle;
 
         /// if we are close enough to the middle, then call it the middle
         ///
@@ -408,8 +432,22 @@ public class FourWheelDriveOp extends OpMode {
 
         /// write the motor powers
         ///
-        if (grabberRackMotor != null) { grabberRackMotor.setPower(grabberRackPower); }
-        if (winchMotor != null) { winchMotor.setPower(winchPower); }
+        if (grabberRackMotor != null) {
+            if (grabberRackMotor.getMode() == DcMotorController.RunMode.RUN_TO_POSITION)
+            {
+                grabberRackMotor.setPower(1.0f);    // get into position as fast as possible
+
+                if (gamepad2.a)
+                { grabberRackMotor.setTargetPosition(grabberRackLowerEncoder); }
+                else if (gamepad2.y)
+                { grabberRackMotor.setTargetPosition(grabberRackUpperEncoder); }
+            }
+            else
+            {
+                grabberRackMotor.setPower(grabberRackPower);
+            }
+        }
+        if (winchMotor != null) { winchMotor.setPower(winchMotorPower); }
 
         rightFrontMotor.setPower(rightPower);
         leftFrontMotor.setPower(leftPower);
@@ -462,6 +500,39 @@ public class FourWheelDriveOp extends OpMode {
         dashboard.update(); // telemetry will get updated regularly and sent back without saturating the link or processor
     }
 
+    int grabberRackLowerEncoder = 0;
+    int grabberRackUpperEncoder = 0;
+    int grabberRackUpDownFactor = 1;   // set to -1 if the encoder reads smaller values when rack is extended
+
+    private void DoGrabberRack()
+    {
+        if (grabberRackMotor == null)
+        { return; }
+
+        /// if the "x" button is down and the left bumper is pressed, then run the rack
+        /// without encoders. when the left trigger gets pressed, use the
+        /// current encoder value as the low. when the right trigger gets pressed
+        /// use the current encoder value as the high
+        ///
+        if (gamepad2.x)
+        {
+            grabberRackMotor.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
+
+            /// when they press the left bumper, use the current encoder value as the lower
+            ///
+            if (gamepad2.left_bumper)
+            { grabberRackLowerEncoder = grabberRackMotor.getCurrentPosition() * grabberRackUpDownFactor; }
+
+            /// when they press the right bumper, use the current encoder value as the upper
+            ///
+            if (gamepad2.right_bumper)
+            { grabberRackUpperEncoder = grabberRackMotor.getCurrentPosition() * grabberRackUpDownFactor; }
+        }
+        else
+        {
+            grabberRackMotor.setMode(DcMotorController.RunMode.RUN_TO_POSITION);
+        }
+    }
     /// give an acceleration profile to the throttle according to the equation
     ///
     /// y=G*((x-D)/(1-D))^3+(1-G)*(x-D)/(1-D); Where X is in value, D is Deadband and G is Gain (0..1)
@@ -477,8 +548,8 @@ public class FourWheelDriveOp extends OpMode {
     ///
     static float joystickDeadband = 0.009f;     // joystick readings less than this should be treated as 0.0
 
-    static float gainHigh = 0.3f;
-    static float gainLow = 0.9f;
+    static float gainHigh = 0.95f;
+    static float gainLow = 0.3f;
 
     private float throttle(float joystickAmount, float gain)
     {
