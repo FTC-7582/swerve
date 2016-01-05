@@ -82,21 +82,6 @@ public class FourWheelDriveOp extends OpMode {
     static double grabberRotatorStep = 0.025; //5.0 / 180.0; // 0.5 degrees
 
 
-    /// I found this on the web. Don't know if it is true -JGM
-    ///
-    //    Given that the HiTechic Servo Controller allows setting of the PWM output from 750 to 2250 microseconds
-    //    with a step resolution of 5.88 microseconds anything under servo[foo] = 42 puts the servo into the zombie state.
-    //    The math is the same for the other end of the scale (212).
-    //
-    //    Anything in between those two values will fall somewhere within the 1260 degree rotation of the servo.
-    //
-    Servo continuousServo;
-    double continuousServoMovement;
-    static double continuousRotateLeft = 43.0 / 256.0;
-    static double continuousMiddle = 0.5;
-    static double continuousRotateRight = 211.0 / 256.0;
-    static double continuousRotateStep = 0.1;
-
     TelemetryDashboardAndLog dashboard;
     String ComponentStatus;
 
@@ -165,17 +150,6 @@ public class FourWheelDriveOp extends OpMode {
             ComponentStatus += "-";
         }
 
-        try {
-            continuousServo = hardwareMap.servo.get("continuous");
-            activeServos.add(continuousServo);
-            ComponentStatus += "C";
-        }
-        catch (Exception E)
-        {
-            continuousServo = null;
-            ComponentStatus += "-";
-        }
-
         wheelControllerFront = hardwareMap.dcMotorController.get("wheels_front");
         wheelControllerRear = hardwareMap.dcMotorController.get("wheels_rear");
 
@@ -201,20 +175,10 @@ public class FourWheelDriveOp extends OpMode {
         /// set up the dashboard with callbacks that are activated when needed
         /// supplants the telemetry object
         ///
-        if (continuousServo == null)
-        {
-            dashboard.addLine(dashboard.item(ComponentStatus, new IFunc<Object>() {
+
+        dashboard.addLine(dashboard.item(ComponentStatus, new IFunc<Object>() {
                 @Override
                 public String value() { return ""; }}));
-        }
-        else {
-            dashboard.addLine(dashboard.item(ComponentStatus + ": continuous ", new IFunc<Object>() {
-                @Override
-                public String value() {
-                    return String.format("%.2f", continuousServo.getPosition());
-                }
-            }));
-        }
 
         dashboard.addLine(dashboard.item("front L/R motor ", new IFunc<Object>()
         {
@@ -290,7 +254,6 @@ public class FourWheelDriveOp extends OpMode {
         if (grabberRackMotor != null) { grabberRackMotor.setMode(DcMotorController.RunMode.RESET_ENCODERS); }
 
         winchPosition = winchPositionLower;
-        continuousServoMovement = continuousMiddle;
         grabberRotatorPosition = grabberRotatorMiddle;
     }
 
@@ -340,26 +303,6 @@ public class FourWheelDriveOp extends OpMode {
 
         rightPower = throttle(rightPower, gain);
         leftPower = throttle(leftPower, gain);
-
-        /// Continuous servo
-        /// X means set continuousServoPosition to go left
-        /// Y means stop
-        /// B means set continuousServoPosition to go right
-        /// A means move the continuous servo positive 10% of travel (Experimental)
-        /// A + Left Bumper means move the continuous servo negative 10% of travel (Experimental)
-        ///
-        if (gamepad1.x) {
-            continuousServoMovement = continuousRotateLeft;
-        } else if (gamepad1.y) {
-            continuousServoMovement = continuousMiddle;
-        } else if (gamepad1.b) {
-            continuousServoMovement = continuousRotateRight;
-        } else if (gamepad1.a) {
-            if (gamepad1.left_bumper)
-            { continuousServoMovement -= continuousRotateStep; }
-            else
-            { continuousServoMovement += continuousRotateStep; }
-        }
 
         /// using gamepad2
         ///
@@ -422,13 +365,11 @@ public class FourWheelDriveOp extends OpMode {
         // clip the position values so that they never exceed 0..1
         grabberRotatorPosition = Range.clip(grabberRotatorPosition, 0, 1);
         winchPosition = Range.clip(winchPosition, 0, 1);
-        continuousServoMovement = Range.clip(continuousServoMovement, 0, 1);
 
         /// write position values to the servos
         ///
         if (grabberRotatorServo != null) { grabberRotatorServo.setPosition(grabberRotatorPosition); }
         if (winchServo != null) { winchServo.setPosition(winchPosition); }
-        if (continuousServo != null) { continuousServo.setPosition(continuousServoMovement); }
 
         /// write the motor powers
         ///
