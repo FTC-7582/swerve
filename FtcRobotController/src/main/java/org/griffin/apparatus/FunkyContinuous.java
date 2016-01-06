@@ -1,7 +1,6 @@
-package org.usfirst.ftc.griffin.apparatus;
+package org.griffin.apparatus;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.swerverobotics.library.TelemetryDashboardAndLog;
@@ -14,7 +13,7 @@ import java.util.List;
  * Created by Ultimate on 1/4/2016.
  * The HT7592-HB quarter scale servo that appears to go 3.5 (or so) turns CW
  */
-public class FunkyContinuous extends OpMode {
+public class FunkyContinuous {
     /// I found this on the web. Don't know if it is true -JGM
     ///
     //    Given that the HiTechic Servo Controller allows setting of the PWM output from 750 to 2250 microseconds
@@ -36,19 +35,22 @@ public class FunkyContinuous extends OpMode {
     private TelemetryDashboardAndLog dashboard;
     private boolean logging;
 
-    public FunkyContinuous(String servoName, TelemetryDashboardAndLog dashboard, boolean logging)
+    private OpMode opMode;
+
+    public FunkyContinuous(OpMode opMode, String servoName, TelemetryDashboardAndLog dashboard, boolean logging)
     {
+        this.opMode = opMode;
+
         this.continuousServoName = servoName;
         this.dashboard = dashboard;
         this.logging = logging;
     }
 
-    @Override
     public void init() {
         status = "";
 
         try {
-            continuousServo = hardwareMap.servo.get(continuousServoName);
+            continuousServo = opMode.hardwareMap.servo.get(continuousServoName);
             status += "c";
         } catch (Exception E) {
             continuousServo = null;
@@ -70,12 +72,10 @@ public class FunkyContinuous extends OpMode {
 
     }
 
-    @Override
     public void init_loop() {
         continuousServoMovement = continuousMiddle;
     }
 
-    @Override
     public void loop() {
         /// Continuous servo
         /// X means set continuousServoPosition to go left
@@ -84,14 +84,14 @@ public class FunkyContinuous extends OpMode {
         /// A means move the continuous servo positive 10% of travel (Experimental)
         /// A + Left Bumper means move the continuous servo negative 10% of travel (Experimental)
         ///
-        if (gamepad1.x) {
+        if (opMode.gamepad1.x) {
             continuousServoMovement = continuousRotateLeft;
-        } else if (gamepad1.y) {
+        } else if (opMode.gamepad1.y) {
             continuousServoMovement = continuousMiddle;
-        } else if (gamepad1.b) {
+        } else if (opMode.gamepad1.b) {
             continuousServoMovement = continuousRotateRight;
-        } else if (gamepad1.a) {
-            if (gamepad1.left_bumper) {
+        } else if (opMode.gamepad1.a) {
+            if (opMode.gamepad1.left_bumper) {
                 continuousServoMovement -= continuousRotateStep;
             } else {
                 continuousServoMovement += continuousRotateStep;

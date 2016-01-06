@@ -1,5 +1,6 @@
-package org.usfirst.ftc.griffin.apparatus;
+package org.griffin.apparatus;
 
+import com.qualcomm.ftccommon.DbgLog;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorController;
@@ -12,7 +13,7 @@ import org.swerverobotics.library.interfaces.IFunc;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.usfirst.ftc.griffin.apparatus.Util.throttle;
+import static org.griffin.apparatus.Util.throttle;
 
 /**
  * Created by Ultimate on 1/4/2016.
@@ -21,7 +22,7 @@ import static org.usfirst.ftc.griffin.apparatus.Util.throttle;
  * The rack is motor driven with an encoder.
  * The servo is used to dump the grabber
  */
-public class Grabber extends OpMode {
+public class Grabber {
     public Servo rotatorServo;
     private static double rotatorServoMiddle = 0.2; //0.5;
     private static double rotatorServoStep = 0.025; //5.0 / 180.0; // 0.5 degrees
@@ -40,8 +41,12 @@ public class Grabber extends OpMode {
     private TelemetryDashboardAndLog dashboard;
     private boolean logging;
 
-    public Grabber(String motorName, DcMotor.Direction motorDirection, String rotatorName, TelemetryDashboardAndLog dashboard, boolean logging)
+    private OpMode opMode;
+
+    public Grabber(OpMode opMode, String motorName, DcMotor.Direction motorDirection, String rotatorName, TelemetryDashboardAndLog dashboard, boolean logging)
     {
+        this.opMode = opMode;
+
         this.dashboard = dashboard;
         this.rackMotorName = motorName;
         this.rackMotorDirection = motorDirection;
@@ -49,22 +54,23 @@ public class Grabber extends OpMode {
         this.logging = logging;
     }
 
-    @Override
     public void init() {
         status = "";
 
         try {
-            rackMotor = hardwareMap.dcMotor.get(rackMotorName);
+            rackMotor = opMode.hardwareMap.dcMotor.get(rackMotorName);
             status += "G";
         } catch (Exception E) {
+            DbgLog.msg("*** Exc:" + E.getMessage());
             rackMotor = null;
             status += "-";
         }
 
         try {
-            rotatorServo = hardwareMap.servo.get(rotatorServoName);
+            rotatorServo = opMode.hardwareMap.servo.get(rotatorServoName);
             status += "g";
         } catch (Exception E) {
+            DbgLog.msg("*** Exc:" + E.getMessage());
             rotatorServo = null;
             status += "-";
         }
@@ -109,7 +115,6 @@ public class Grabber extends OpMode {
         }
     }
 
-    @Override
     public void init_loop()
     {
         if (rackMotor == null)
@@ -129,26 +134,28 @@ public class Grabber extends OpMode {
 
     private static int grabberRackUpDownFactor = 1;   // set to -1 if the encoder reads smaller values when rack is extended
 
-    @Override
     public void loop()
     {
+        if (rackMotor == null)
+        { return; }
+
         /// if the "x" button is down and the left bumper is pressed, then run the rack
         /// using encoders but not run to position. when the left trigger gets pressed, use the
         /// current encoder value as the low. when the right trigger gets pressed
         /// use the current encoder value as the high
         ///
-        if (gamepad2.x)
+        if (opMode.gamepad2.x)
         {
             rackMotor.setMode(DcMotorController.RunMode.RUN_USING_ENCODERS);
 
             /// when they press the left bumper, use the current encoder value as the lower
             ///
-            if (gamepad2.left_bumper)
+            if (opMode.gamepad2.left_bumper)
             { rackMotorEncLowerPosition = rackMotor.getCurrentPosition() * grabberRackUpDownFactor; }
 
             /// when they press the right bumper, use the current encoder value as the upper
             ///
-            if (gamepad2.right_bumper)
+            if (opMode.gamepad2.right_bumper)
             { rackMotorEncUpperPosition = rackMotor.getCurrentPosition() * grabberRackUpDownFactor; }
         }
         else
@@ -158,8 +165,8 @@ public class Grabber extends OpMode {
 
         /// gamepad2.left_stick_y is used to raise and lower the rack on the grabber (picker-upper)
         ///
-        float stickValue = Range.clip(-gamepad2.left_stick_y, -1.0f, 1.0f);
-        float motorThrottle = throttle(gamepad2, stickValue);
+        float stickValue = Range.clip(-opMode.gamepad2.left_stick_y, -1.0f, 1.0f);
+        float motorThrottle = throttle(opMode.gamepad2, stickValue);
 
         if (rackMotor != null)
         { moveRackMotor(motorThrottle); }
@@ -168,8 +175,8 @@ public class Grabber extends OpMode {
         /// for the rotatorServer, use the triggers -- left trigger means rotate left, etc.
         /// add up the values of the triggers and set to deflection from the middle
         ///
-        float leftTrigger = -gamepad2.left_trigger / 2.0f;
-        float rightTrigger = gamepad2.right_trigger / 2.0f;
+        float leftTrigger = -opMode.gamepad2.left_trigger / 2.0f;
+        float rightTrigger = opMode.gamepad2.right_trigger / 2.0f;
         double rotatorServoPositionCommanded = leftTrigger + rightTrigger + rotatorServoMiddle;
 
         /// if we are close enough to the middle, then call it the middle
@@ -193,12 +200,12 @@ public class Grabber extends OpMode {
             if (rackMotorEncLowerPosition > rackMotorEncUpperPosition)
             { return; }
 
-            if (gamepad2.a)
+            if (opMode.gamepad2.a)
             {
                 rackMotor.setPower(1.0f);    // get into position as fast as possible
                 rackMotor.setTargetPosition(rackMotorEncLowerPosition);
             }
-            else if (gamepad2.y)
+            else if (opMode.gamepad2.y)
             {
                 rackMotor.setPower(1.0f);    // get into position as fast as possible
                 rackMotor.setTargetPosition(rackMotorEncUpperPosition);

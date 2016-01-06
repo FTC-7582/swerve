@@ -1,4 +1,4 @@
-package org.usfirst.ftc.griffin.apparatus;
+package org.griffin.apparatus;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
 
@@ -13,6 +13,19 @@ public class Util {
     private static float gainLow = 0.9f;
     private static float defaultDeadband = 0.009f;
 
+    /// give an acceleration profile to the throttle according to the equation
+    ///
+    /// y=G*((x-D)/(1-D))^3+(1-G)*(x-D)/(1-D); Where X is in value, D is Deadband and G is Gain (0..1)
+    /// plug this equation into https://www.desmos.com/calculator an vary the values for
+    ///
+    ///  gain (0.0 <= G <= 1.0) and
+    ///  deadband (0.0 <= D <= 1.0)
+    ///
+    ///  notice that the curve always goes through 1.0. The paramters allow us to make
+    ///  the more precise (at low throttle positions, more input is required)
+    ///
+    ///  gainHigh is more linear response than gainLow
+    ///
     public static float throttle(Gamepad gamepad, float rawThrottle, float deadband)
     {
         float gain = gainHigh;
