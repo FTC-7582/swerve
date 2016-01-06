@@ -24,7 +24,12 @@ import static org.griffin.apparatus.Util.throttle;
  */
 public class Grabber {
     public Servo rotatorServo;
-    private static double rotatorServoMiddle = 0.2; //0.5;
+    private static double rotatorServoMiddle = 0.5;
+    // we need full range from -45 to 225 (-pi/4 to 5*pi/4)
+    // from center we need to move -135 and +135 from 90
+    // with a 2:1 gear ratio, the move is -67.5 and +67.5 from 90
+    // or in radians about 1.178
+    private static float rotatorServoScale = 90.0f / 180.0f;
     private static double rotatorServoStep = 0.025; //5.0 / 180.0; // 0.5 degrees
 
     public DcMotor rackMotor;       // the picker-upper
@@ -175,13 +180,13 @@ public class Grabber {
         /// for the rotatorServer, use the triggers -- left trigger means rotate left, etc.
         /// add up the values of the triggers and set to deflection from the middle
         ///
-        float leftTrigger = -opMode.gamepad2.left_trigger / 2.0f;
-        float rightTrigger = opMode.gamepad2.right_trigger / 2.0f;
+        float leftTrigger = -opMode.gamepad2.left_trigger / 2.0f * rotatorServoScale;
+        float rightTrigger = opMode.gamepad2.right_trigger / 2.0f * rotatorServoScale;
         double rotatorServoPositionCommanded = leftTrigger + rightTrigger + rotatorServoMiddle;
 
         /// if we are close enough to the middle, then call it the middle
         ///
-        if (Math.abs(rotatorServoPositionCommanded - rotatorServoMiddle) < rotatorServoStep / 2.0)
+        if (Math.abs(rotatorServoPositionCommanded - rotatorServoMiddle) < rotatorServoStep)
         {
             rotatorServoPositionCommanded = rotatorServoMiddle;
         }
