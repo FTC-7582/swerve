@@ -1,5 +1,6 @@
 package org.griffin.apparatus;
 
+import com.qualcomm.ftccommon.DbgLog;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
@@ -65,6 +66,7 @@ public class Winch {
             spoolMotor = opMode.hardwareMap.dcMotor.get(spoolMotorName);
             status += "W";
         } catch (Exception E) {
+            DbgLog.msg("*** Exc Winch." + spoolMotorName + " " + E.getMessage());
             spoolMotor = null;
             status += "-";
         }
@@ -73,6 +75,7 @@ public class Winch {
             heightServo = opMode.hardwareMap.servo.get(heightServoName);
             status += "w";
         } catch (Exception E) {
+            DbgLog.msg("*** Exc Winch." + heightServoName + " " + E.getMessage());
             heightServo = null;
             status += "-";
         }
@@ -81,6 +84,7 @@ public class Winch {
             deployServo = opMode.hardwareMap.servo.get(deployServoName);
             status += "d";
         } catch (Exception E) {
+            DbgLog.msg("*** Exc Winch." + deployServoName + " " + E.getMessage());
             heightServo = null;
             status += "-";
         }
@@ -158,6 +162,9 @@ public class Winch {
         List<Servo> ret = new ArrayList<Servo>();
         if (heightServo != null)
         { ret.add(heightServo); }
+
+        if (deployServo != null)
+        { ret.add(deployServo); }
 
         return ret;
     }

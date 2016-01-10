@@ -66,7 +66,7 @@ public class Grabber {
             rackMotor = opMode.hardwareMap.dcMotor.get(rackMotorName);
             status += "G";
         } catch (Exception E) {
-            DbgLog.msg("*** Exc:" + E.getMessage());
+            DbgLog.msg("*** Exc Grabber." + rackMotorName + " " + E.getMessage());
             rackMotor = null;
             status += "-";
         }
@@ -75,7 +75,7 @@ public class Grabber {
             rotatorServo = opMode.hardwareMap.servo.get(rotatorServoName);
             status += "g";
         } catch (Exception E) {
-            DbgLog.msg("*** Exc:" + E.getMessage());
+            DbgLog.msg("*** Exc Grabber." + rotatorServoName + " " + E.getMessage());
             rotatorServo = null;
             status += "-";
         }

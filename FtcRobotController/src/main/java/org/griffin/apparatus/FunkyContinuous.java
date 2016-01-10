@@ -1,5 +1,6 @@
 package org.griffin.apparatus;
 
+import com.qualcomm.ftccommon.DbgLog;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.Servo;
 
@@ -53,6 +54,7 @@ public class FunkyContinuous {
             continuousServo = opMode.hardwareMap.servo.get(continuousServoName);
             status += "c";
         } catch (Exception E) {
+            DbgLog.msg("*** Exc FunkyContinuous." + continuousServoName + " " + E.getMessage());
             continuousServo = null;
             status += "-";
         }
