@@ -115,8 +115,8 @@ public class FourWheelDriveOp extends OpMode {
         /// after the call to createEasyMotorController, the motor controllers
         /// work normally -- no looping mod 17 or waiting for the mode to switch
         ///
-        createEasyMotorController(this, rightFrontMotor, leftFrontMotor);
-        createEasyMotorController(this, rightRearMotor, leftRearMotor);
+        createEasyMotorController(this, rightFrontMotor, rightRearMotor);
+        createEasyMotorController(this, leftFrontMotor, leftRearMotor);
 
         /// this is kind of ugly. just make sure that the grabber and winch share a motor controller and all is well
         ///
