@@ -24,11 +24,17 @@ public class Winch {
     static double winchHeightLower = 0.0;
     static double winchHeightStep = 1.0 / 180.0; // step in 1 degree increments
 
+    public Servo deployServo;
+    static double deployServoUnwind = 0.0;
+    static double deployServoStop = 0.5;
+    static double deployServoWind = 1.0;
+
     public DcMotor spoolMotor;
     private double spoolMotorPowerCommanded;
 
     private String spoolMotorName;
     private String heightServoName;
+    private String deployServoName;
 
     private DcMotor.Direction spoolMotorDirection;
     private String status;
@@ -38,14 +44,15 @@ public class Winch {
 
     private OpMode opMode;
 
-    public Winch(OpMode opMode, String motorName, DcMotor.Direction motorDirection, String servoName, TelemetryDashboardAndLog dashboard, boolean logging)
+    public Winch(OpMode opMode, String motorName, DcMotor.Direction motorDirection, String heightServoName, String deployServoName, TelemetryDashboardAndLog dashboard, boolean logging)
     {
         this.opMode = opMode;
 
         this.spoolMotorName = motorName;
         this.spoolMotorDirection = motorDirection;
 
-        this.heightServoName = servoName;
+        this.heightServoName = heightServoName;
+        this.deployServoName = deployServoName;
 
         this.dashboard = dashboard;
         this.logging = logging;
@@ -65,6 +72,14 @@ public class Winch {
         try {
             heightServo = opMode.hardwareMap.servo.get(heightServoName);
             status += "w";
+        } catch (Exception E) {
+            heightServo = null;
+            status += "-";
+        }
+
+        try {
+            deployServo = opMode.hardwareMap.servo.get(deployServoName);
+            status += "d";
         } catch (Exception E) {
             heightServo = null;
             status += "-";
@@ -106,7 +121,19 @@ public class Winch {
         spoolMotorPowerCommanded = throttle(opMode.gamepad2, stickValue);
 
         if (spoolMotor != null)
-        { spoolMotor.setPower(spoolMotorPowerCommanded); }
+        {
+            spoolMotor.setPower(spoolMotorPowerCommanded);
+
+            /// set the deployServer to assist if we are deploying
+            ///
+            if (deployServo != null) {
+                if (spoolMotorPowerCommanded > 0.0) {
+                    deployServo.setPosition(deployServoUnwind);
+                } else {
+                    deployServo.setPosition(deployServoStop);
+                }
+            }
+        }
 
         /// winchPosition uses gamepad2 dpad
         /// down is to lower the winch position
