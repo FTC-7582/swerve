@@ -57,8 +57,8 @@ import static org.swerverobotics.library.ClassFactory.createEasyServoController;
  * Enables control of the robot via gamepad1 and control of apparatuses via gamepad2.
  */
 public class FourWheelDriveOp extends OpMode {
-    DcMotorController wheelControllerFront;
-    DcMotorController wheelControllerRear;
+    DcMotorController wheelControllerLeft;
+    DcMotorController wheelControllerRight;
     DcMotorController grabberRackAndWinchController;
 
     DcMotor rightFrontMotor;
@@ -80,8 +80,8 @@ public class FourWheelDriveOp extends OpMode {
         dashboard = new TelemetryDashboardAndLog();
         ComponentStatus = "";
 
-        grabber = new Grabber(this, "grabber_rack", DcMotor.Direction.REVERSE, "grabberRotator", dashboard, true);
-        winch = new Winch(this, "winch_motor", DcMotor.Direction.FORWARD, "winch_servo", dashboard, true);
+        grabber = new Grabber(this, "grabber_rack", DcMotor.Direction.REVERSE, "grabber_servo", dashboard, true);
+        winch = new Winch(this, "winch_motor", DcMotor.Direction.FORWARD, "winch_servo", "deploy_servo", dashboard, true);
 
         DbgLog.msg("FourWheelDriveOp ctor");
     }
@@ -92,22 +92,23 @@ public class FourWheelDriveOp extends OpMode {
     @Override
     public void init() {
 
-        rightFrontMotor = hardwareMap.dcMotor.get("motor_rt_front");
-        rightRearMotor = hardwareMap.dcMotor.get("motor_rt_rear");
         leftFrontMotor = hardwareMap.dcMotor.get("motor_lt_front");
         leftRearMotor = hardwareMap.dcMotor.get("motor_lt_rear");
+        rightFrontMotor = hardwareMap.dcMotor.get("motor_rt_front");
+        rightRearMotor = hardwareMap.dcMotor.get("motor_rt_rear");
 
         grabber.init();
         winch.init();
 
-        wheelControllerFront = hardwareMap.dcMotorController.get("wheels_front");
-        wheelControllerRear = hardwareMap.dcMotorController.get("wheels_rear");
+        wheelControllerLeft = hardwareMap.dcMotorController.get("wheels_left");
+        wheelControllerRight = hardwareMap.dcMotorController.get("wheels_right");
 
         try {
             grabberRackAndWinchController = hardwareMap.dcMotorController.get("rack_controller");
         }
         catch (Exception E)
         {
+            DbgLog.msg("*** Exc FourWheelDriveOp." + "rack_controller " + E.getMessage());
             grabberRackAndWinchController = null;
         }
 
