@@ -140,10 +140,10 @@ public class FourWheelDriveOp extends OpMode {
             @Override public String value() {return String.format("%.2f", leftPower) + "/"+ String.format("%.2f", rightPower);}
         }));
 
-        dashboard.addLine(dashboard.item("L/R act ", new IFunc<Object>()
-        {
-            @Override public String value() {return String.format("%.2f", leftRearMotor.getPower()) + "/" + String.format("%.2f", rightRearMotor.getPower());}
-        }));
+//        dashboard.addLine(dashboard.item("L/R act ", new IFunc<Object>()
+//        {
+//            @Override public String value() {return String.format("%.2f", leftRearMotor.getPower()) + "/" + String.format("%.2f", rightRearMotor.getPower());}
+//        }));
 
         dashboard.addLine(dashboard.item(ComponentStatus, new IFunc<Object>() {
             @Override
