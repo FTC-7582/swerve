@@ -13,8 +13,8 @@ import static org.swerverobotics.library.ClassFactory.createEasyMotorController;
  * to suit your needs, or create sibling OpModes adjacent to this one in the same
  * Java package.
  */
-@TeleOp(name="Red 1 Griffin OpMode")
-public class RedFarOp extends SynchronousOpMode
+@TeleOp(name="Red Griffin OpMode")
+public class RedAutoOp extends SynchronousOpMode
 {
     /* Declare here any fields you might find useful. */
     DcMotor[] drive = new DcMotor[4];
@@ -47,18 +47,12 @@ public class RedFarOp extends SynchronousOpMode
 
         grabber.setPosition(0.5d);
 
+        forward(0.01f, 10);
         forward(0.25f, 1200);
-        left(0.35f, 800);
-        forward(0.5f, 2500);
-        left(0.35f, 1200);
+        left(0.2f, 1600);
+        forward(0.5f, 2200);
+        left(0.25f, 1900);
         forward (0.375f, 4000);
-        //backward(0.5f, 1000);
-        //left(0.5f, 750);
-        //right(0.5f, 750);
-        //backward(0.5f, 1000);
-        //left(0.25f, 500);
-        //forward(0.5f, 750);
-        //right(0.5f, 1000);
 
         //Wait for gamepad 1's right bumper to be pressed
         //while (!gamepad1.right_bumper) {Thread.sleep(10);}
