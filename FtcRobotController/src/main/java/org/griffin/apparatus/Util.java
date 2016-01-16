@@ -28,25 +28,31 @@ public class Util {
     ///
     public static float throttle(Gamepad gamepad, float rawThrottle, float deadband)
     {
-        float gain = gainHigh;
+        float gain = 1.0f;
         if (gamepad.right_bumper)
-        { gain = gainLow; }
+        { gain = 0.5f; }
 
-        /// save the sign of the joystick and use the absolute value -- this function
-        /// only works for values >0
-        ///
-        float sign = Math.signum(rawThrottle);
-        rawThrottle = Math.abs(rawThrottle);
+        return rawThrottle * gain;
 
-        /// cube term without calling the Math.pow function
-        ///
-        float term = (rawThrottle-deadband)/(1.0f-deadband);
-        float temp = term;
-        temp *= temp;
-        temp *= temp;
-
-        float ret = gain * (temp + (1.0f - gain) * term);
-        return Math.max(ret, 0.0f) * sign;
+//        float gain = gainHigh;
+//        if (gamepad.right_bumper)
+//        { gain = gainLow; }
+//
+//        /// save the sign of the joystick and use the absolute value -- this function
+//        /// only works for values >0
+//        ///
+//        float sign = Math.signum(rawThrottle);
+//        rawThrottle = Math.abs(rawThrottle);
+//
+//        /// cube term without calling the Math.pow function
+//        ///
+//        float term = (rawThrottle-deadband)/(1.0f-deadband);
+//        float temp = term;
+//        temp *= temp;
+//        temp *= temp;
+//
+//        float ret = gain * (temp + (1.0f - gain) * term);
+//        return Math.max(ret, 0.0f) * sign;
     }
 
     public static float throttle(Gamepad gamepad, float rawThrottle)
