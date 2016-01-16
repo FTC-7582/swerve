@@ -18,6 +18,7 @@ public class BlueAutoOp extends SynchronousOpMode
 {
     /* Declare here any fields you might find useful. */
     DcMotor[] drive = new DcMotor[4];
+    DcMotor pinion;
     Servo grabber;
 
     //DcMotor motorLeft;
@@ -37,6 +38,8 @@ public class BlueAutoOp extends SynchronousOpMode
         this.drive[2] = this.hardwareMap.dcMotor.get("motor_lt_rear");
         this.drive[3] = this.hardwareMap.dcMotor.get("motor_rt_rear");
 
+        pinion = this.hardwareMap.dcMotor.get("grabber_rack");
+
         grabber = this.hardwareMap.servo.get("grabber_servo");
 
         createEasyMotorController(this, drive[2], drive[0]);
@@ -45,14 +48,17 @@ public class BlueAutoOp extends SynchronousOpMode
         // Wait for the game to start
         waitForStart();
 
+        pinion.setPower(-0.5f);
+        Thread.sleep(500);
+        pinion.setPower(0);
         grabber.setPosition(0.5d);
 
         forward(0.01f, 10);
-        forward(0.25f, 1200);
-        right(0.2f, 1600);
-        forward(0.5f, 2200);
-        right(0.25f, 1900);
-        forward (0.375f, 4000);
+        forward(0.25f, 760);
+        right(0.2f, 1200);
+        forward(0.5f, 2000);
+        right(0.25f, 1650);
+        forward (1f, 4000);
 
         //Wait for gamepad 1's right bumper to be pressed
         //while (!gamepad1.right_bumper) {Thread.sleep(10);}

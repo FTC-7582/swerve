@@ -71,8 +71,9 @@ public class FtcOpModeRegister implements OpModeRegister
      * or do that registration in a static method annotated as @OpModeRegistrar.
      */
 
-      manager.register("NullOp", NullOp.class);
+//      manager.register("NullOp", NullOp.class);
       manager.register("FourWheelDriveOp", FourWheelDriveOp.class);
+      manager.register("XSwitchDriveOp", FourWheelDriveOpPush.class);
 
     //manager.register("MatrixK9TeleOp", MatrixK9TeleOp.class);
     //manager.register("K9TeleOp", K9TeleOp.class);
